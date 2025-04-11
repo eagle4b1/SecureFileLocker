@@ -57,11 +57,11 @@ def aes_encrypt(data, password):
     key, iv = derive_key_and_iv(password)
     padder = padding.PKCS7(algorithms.AES.block_size).padder()
     padded_data = padder.update(data) + padder.finalize()
-    
+
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
     encryptor = cipher.encryptor()
     encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
-    
+
     # Prepend IV to encrypted data for decryption later
     return iv + encrypted_data
 
@@ -69,20 +69,20 @@ def aes_decrypt(data, password):
     """Decrypt data using AES"""
     if len(data) < 16:  # IV size is 16 bytes
         raise ValueError("Input data is too short to contain an IV")
-    
+
     # Extract IV from the beginning of the data
     iv = data[:16]
     encrypted_data = data[16:]
-    
+
     key, _ = derive_key_and_iv(password)
-    
+
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
     decryptor = cipher.decryptor()
     padded_data = decryptor.update(encrypted_data) + decryptor.finalize()
-    
+
     unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
     original_data = unpadder.update(padded_data) + unpadder.finalize()
-    
+
     return original_data
 
 def encrypt_text_for_display(text, password):
@@ -121,7 +121,7 @@ def process_file():
         if file.filename == '':
             flash('No selected file', 'error')
             return redirect(request.url)
-        
+
         password = request.form.get('password', '')
         if not password:
             flash('Password is required', 'error')
@@ -133,7 +133,7 @@ def process_file():
         if file and allowed_file(file.filename):
             # Get file data and process it
             file_data = file.read()
-            
+
             if mode == 'encrypt':
                 result_data = aes_encrypt(file_data, password)
             else:  # decrypt
