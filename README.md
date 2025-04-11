@@ -64,12 +64,6 @@ Access the app here: [https://securefilelocker.onrender.com](https://securefilel
 
 ---
 
-## 📷 Screenshots
-
-_Add screenshots here if you'd like — drag into the README on GitHub or use Markdown image tags._
-
----
-
 ## 📄 License
 
 MIT License — use it freely and credit if you share.
