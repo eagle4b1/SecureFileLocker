@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 - Server Error | SecureFileLocker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header>
+        <div class="container header-container">
+            <div class="logo">
+                <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                <span>SecureFileLocker</span>
+            </div>
+            <div class="theme-toggle">
+                <input type="checkbox" id="theme-toggle-input" class="theme-toggle-input" aria-label="Toggle dark mode">
+                <label for="theme-toggle-input" class="theme-toggle-label">
+                    <i class="fas fa-sun" aria-hidden="true" title="Light mode"></i>
+                    <i class="fas fa-moon" aria-hidden="true" title="Dark mode"></i>
+                    <span class="theme-toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <div style="text-align: center; padding: 2rem 1rem;">
+                <i class="fas fa-exclamation-circle" style="font-size: 4rem; color: var(--danger); margin-bottom: 1rem;" aria-hidden="true"></i>
+                <h1>500 - Server Error</h1>
+                <p>Something went wrong on our end. Please try again later.</p>
+                <a href="{{ url_for('index') }}" class="btn" style="margin-top: 2rem;">
+                    <i class="fas fa-home" aria-hidden="true"></i> Return to Home
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 SecureFileLocker. All encryption happens locally in your browser.</p>
+            <p class="security-note">We never store your files or passwords. Your data stays private.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
+

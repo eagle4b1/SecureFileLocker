@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureFileLocker - Encrypt and Decrypt Files Securely</title>
+    <meta name="description" content="A secure tool for encrypting and decrypting files and text with strong password protection">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header>
+        <div class="container header-container">
+            <div class="logo">
+                <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                <span>SecureFileLocker</span>
+            </div>
+            <div class="theme-toggle">
+                <input type="checkbox" id="theme-toggle-input" class="theme-toggle-input" aria-label="Toggle dark mode">
+                <label for="theme-toggle-input" class="theme-toggle-label">
+                    <i class="fas fa-sun" aria-hidden="true" title="Light mode"></i>
+                    <i class="fas fa-moon" aria-hidden="true" title="Dark mode"></i>
+                    <span class="theme-toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+        <div class="flash-messages" aria-live="polite">
+            {% for category, message in messages %}
+            <div class="flash-message {{ category }}">
+                <i class="fas {% if category == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}" aria-hidden="true"></i>
+                {{ message }}
+                <button class="close-flash" aria-label="Close message">&times;</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="tabs" role="tablist">
+            <button class="tab-btn active" data-tab="file" role="tab" aria-selected="true" aria-controls="file-tab" id="file-tab-btn">
+                <i class="fas fa-file-alt" aria-hidden="true"></i> File Encryption
+            </button>
+            <button class="tab-btn" data-tab="text" role="tab" aria-selected="false" aria-controls="text-tab" id="text-tab-btn">
+                <i class="fas fa-align-left" aria-hidden="true"></i> Text Encryption
+            </button>
+        </div>
+
+        <div class="tab-content active" id="file-tab" role="tabpanel" aria-labelledby="file-tab-btn">
+            <div class="card">
+                <h2>Secure File Encryption</h2>
+                <form method="post" enctype="multipart/form-data" id="file-form" action="{{ url_for('process_file') }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="input-group">
+                        <div class="file-input-wrapper" id="file-drop-area">
+                            <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i>
+                            <p>Drag & drop file here</p>
+                            <small>or click to browse</small>
+                            <input type="file" name="file" id="file-input" aria-label="Choose file to encrypt or decrypt">
+                            <div class="loading-spinner" id="file-loading" aria-live="polite">
+                                <div class="spinner" aria-hidden="true"></div>
+                                <p>Processing file...</p>
+                            </div>
+                        </div>
+                        <div class="file-name" id="file-name" aria-live="polite"></div>
+                        <div class="error-message" id="file-error"></div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="file-password">Password:</label>
+                        <div class="password-container">
+                            <input type="password" id="file-password" name="password" placeholder="Enter strong password" required aria-describedby="password-strength-file">
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility" title="Show/Hide Password">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="password-strength" id="password-strength-file">
+                            <div class="strength-bar">
+                                <div class="strength-indicator" style="width: 0%"></div>
+                            </div>
+                            <span class="strength-text">Password strength: Not entered</span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <fieldset class="mode-toggle">
+                            <legend class="sr-only">Encryption Mode</legend>
+                            <input type="radio" id="file-encrypt" name="mode" value="encrypt" checked>
+                            <label for="file-encrypt"><i class="fas fa-lock" aria-hidden="true"></i> Encrypt</label>
+                            
+                            <input type="radio" id="file-decrypt" name="mode" value="decrypt">
+                            <label for="file-decrypt"><i class="fas fa-unlock" aria-hidden="true"></i> Decrypt</label>
+                        </fieldset>
+                    </div>
+
+                    <button type="submit" name="action" value="file" class="btn" id="file-submit-btn">
+                        <i class="fas fa-shield-alt" aria-hidden="true"></i> Process File
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="tab-content" id="text-tab" role="tabpanel" aria-labelledby="text-tab-btn">
+            <div class="card">
+                <h2>Secure Text Encryption</h2>
+                <form method="post" id="text-form" action="{{ url_for('process_text') }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="input-group">
+                        <label for="text-input">Enter Text:</label>
+                        <textarea name="text" id="text-input" placeholder="Enter text to encrypt or decrypt" required aria-describedby="text-error"></textarea>
+                        <div class="error-message" id="text-error"></div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="text-password">Password:</label>
+                        <div class="password-container">
+                            <input type="password" id="text-password" name="password" placeholder="Enter strong password" required aria-describedby="password-strength-text">
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility" title="Show/Hide Password">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="password-strength" id="password-strength-text">
+                            <div class="strength-bar">
+                                <div class="strength-indicator" style="width: 0%"></div>
+                            </div>
+                            <span class="strength-text">Password strength: Not entered</span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <fieldset class="mode-toggle">
+                            <legend class="sr-only">Encryption Mode</legend>
+                            <input type="radio" id="text-encrypt" name="mode" value="encrypt" checked>
+                            <label for="text-encrypt"><i class="fas fa-lock" aria-hidden="true"></i> Encrypt</label>
+                            
+                            <input type="radio" id="text-decrypt" name="mode" value="decrypt">
+                            <label for="text-decrypt"><i class="fas fa-unlock" aria-hidden="true"></i> Decrypt</label>
+                        </fieldset>
+                    </div>
+
+                    <button type="submit" name="action" value="text" class="btn" id="text-submit-btn">
+                        <i class="fas fa-shield-alt" aria-hidden="true"></i> Process Text
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% if result_text %}
+        <div class="result-box" aria-live="polite">
+            <div class="result-header">
+                <h3><i class="fas fa-check-circle" aria-hidden="true"></i> Operation Complete</h3>
+                <button id="copy-btn" class="btn-copy" title="Copy to clipboard" aria-label="Copy result to clipboard">
+                    <i class="fas fa-copy" aria-hidden="true"></i> Copy
+                </button>
+            </div>
+            <textarea id="result-text" readonly aria-label="Operation result">{{ result_text }}</textarea>
+        </div>
+        {% endif %}
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 SecureFileLocker. All encryption happens locally in your browser.</p>
+            <p class="security-note">We never store your files or passwords. Your data stays private.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Script to handle flash message dismissal
+        document.addEventListener('DOMContentLoaded', function() {
+            const closeButtons = document.querySelectorAll('.close-flash');
+            closeButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    this.parentElement.style.display = 'none';
+                });
+            });
+            
+            // Auto-dismiss flash messages after 5 seconds
+            setTimeout(function() {
+                const flashMessages = document.querySelectorAll('.flash-message');
+                flashMessages.forEach(function(message) {
+                    message.style.display = 'none';
+                });
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
