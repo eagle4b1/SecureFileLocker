@@ -336,7 +336,7 @@ function handleTextFormSubmit(event) {
   }
   
   try {
-    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const mode = document.querySelector('input[name="text-mode"]:checked').value;
     const textValue = textInput.value;
     const password = textPassword.value;
     let processedText = '';

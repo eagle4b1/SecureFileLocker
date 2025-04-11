@@ -6,6 +6,11 @@ from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect
 import logging
 from logging.handlers import RotatingFileHandler
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.backends import default_backend
+import base64
+import hashlib
 
 # Configure application
 app = Flask(__name__)
@@ -38,18 +43,63 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def secure_key_from_password(password):
-    """Generate a more secure key from the password"""
-    # This is still relatively basic, but better than a simple sum
-    key = 0
-    for i, char in enumerate(password):
-        key ^= ((ord(char) << (i % 4)) & 0xFF)
-    return key
+def derive_key_and_iv(password):
+    """Derive a key and IV from the password using a secure method"""
+    password_bytes = password.encode('utf-8')
+    # Use SHA-256 to create a 32-byte key (256 bits for AES-256)
+    key = hashlib.sha256(password_bytes).digest()
+    # Use the first 16 bytes of SHA-1 hash as IV
+    iv = hashlib.sha1(password_bytes).digest()[:16]
+    return key, iv
 
-def xor_encrypt_decrypt_binary(data, password):
-    """Encrypt or decrypt binary data using XOR with password-derived key"""
-    key = secure_key_from_password(password)
-    return bytes([b ^ key for b in data])
+def aes_encrypt(data, password):
+    """Encrypt data using AES"""
+    key, iv = derive_key_and_iv(password)
+    padder = padding.PKCS7(algorithms.AES.block_size).padder()
+    padded_data = padder.update(data) + padder.finalize()
+    
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+    
+    # Prepend IV to encrypted data for decryption later
+    return iv + encrypted_data
+
+def aes_decrypt(data, password):
+    """Decrypt data using AES"""
+    if len(data) < 16:  # IV size is 16 bytes
+        raise ValueError("Input data is too short to contain an IV")
+    
+    # Extract IV from the beginning of the data
+    iv = data[:16]
+    encrypted_data = data[16:]
+    
+    key, _ = derive_key_and_iv(password)
+    
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    decryptor = cipher.decryptor()
+    padded_data = decryptor.update(encrypted_data) + decryptor.finalize()
+    
+    unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+    original_data = unpadder.update(padded_data) + unpadder.finalize()
+    
+    return original_data
+
+def encrypt_text_for_display(text, password):
+    """Encrypt text and return base64 encoded string for display"""
+    text_bytes = text.encode('utf-8')
+    encrypted = aes_encrypt(text_bytes, password)
+    return base64.b64encode(encrypted).decode('utf-8')
+
+def decrypt_text_from_display(encrypted_text, password):
+    """Decrypt base64 encoded encrypted text"""
+    try:
+        encrypted_bytes = base64.b64decode(encrypted_text)
+        decrypted_bytes = aes_decrypt(encrypted_bytes, password)
+        return decrypted_bytes.decode('utf-8')
+    except Exception as e:
+        app.logger.error(f"Decryption error: {str(e)}")
+        raise ValueError("Failed to decrypt. Incorrect password or invalid data format.")
 
 @app.route("/", methods=["GET"])
 def index():
@@ -64,7 +114,7 @@ def process_file():
         if 'file' not in request.files:
             flash('No file part', 'error')
             return redirect(request.url)
-        
+
         file = request.files['file']
         # If user does not select file, browser also
         # submit an empty part without filename
@@ -76,25 +126,33 @@ def process_file():
         if not password:
             flash('Password is required', 'error')
             return redirect(request.url)
-        
+
         mode = request.form.get('mode', 'encrypt')
-        
+
         # Validate the file
         if file and allowed_file(file.filename):
             # Get file data and process it
             file_data = file.read()
-            result_data = xor_encrypt_decrypt_binary(file_data, password)
             
+            if mode == 'encrypt':
+                result_data = aes_encrypt(file_data, password)
+            else:  # decrypt
+                try:
+                    result_data = aes_decrypt(file_data, password)
+                except Exception as e:
+                    flash(f"Decryption failed: {str(e)}. Check your password or file format.", 'error')
+                    return redirect(url_for('index'))
+
             # Create a BytesIO object for the result
             result_file = io.BytesIO(result_data)
             result_file.seek(0)
-            
+
             # Generate a secure filename
             filename = secure_filename(file.filename)
             output_filename = f"{'encrypted' if mode == 'encrypt' else 'decrypted'}_{filename}"
-            
+
             app.logger.info(f"Successfully processed file: {filename} using mode: {mode}")
-            
+
             # Return the file for download
             return send_file(
                 result_file,
@@ -105,7 +163,7 @@ def process_file():
         else:
             flash('File type not allowed', 'error')
             return redirect(request.url)
-    
+
     except Exception as e:
         app.logger.error(f"Error processing file: {str(e)}")
         flash(f"An error occurred: {str(e)}", 'error')
@@ -118,19 +176,31 @@ def process_text():
         text = request.form.get('text', '')
         password = request.form.get('password', '')
         mode = request.form.get('mode', 'encrypt')
-        
+
         if not text:
             flash('Text is required', 'error')
             return redirect(url_for('index'))
-        
+
         if not password:
             flash('Password is required', 'error')
             return redirect(url_for('index'))
-        
-        # For text processing, we'll return the result via the template
-        # The actual encryption/decryption is handled in JavaScript
-        return render_template('index.html', result_text=text, mode=mode)
-    
+
+        result = ""
+        if mode == 'encrypt':
+            result = encrypt_text_for_display(text, password)
+        else:  # decrypt
+            try:
+                result = decrypt_text_from_display(text, password)
+            except ValueError as e:
+                flash(str(e), 'error')
+                return redirect(url_for('index'))
+
+        # Return the processed text via the template
+        return render_template('index.html', 
+                              result_text=result, 
+                              original_text=text,
+                              mode=mode)
+
     except Exception as e:
         app.logger.error(f"Error processing text: {str(e)}")
         flash(f"An error occurred: {str(e)}", 'error')
@@ -161,4 +231,3 @@ def health_check():
 
 if __name__ == "__main__":
     app.run(debug=False)
-
